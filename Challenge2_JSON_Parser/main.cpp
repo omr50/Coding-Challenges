@@ -13,7 +13,18 @@ int main() {
     TYPE valType = _NULL;
     scopeSettings settings = {false, false, false};
     std::string currentString = "";
-    std::string JSON_STRING = R"(
+    std::string JSON_STRING9 = R"(
+{
+  "key": "value",
+  "key-n": 101,
+  "key-o": {
+    "inner key": "inner value"
+  },
+  "key-l": ['list value']
+}
+)";
+
+    std::string JSON_STRING1 = R"(
 {
     "projects": [
         {
@@ -64,7 +75,7 @@ int main() {
 
 
 
-    std::string JSON_STRING1 =  R"(
+    std::string JSON_STRING11 =  R"(
     {
         "name": "John Doe",
         "age": 30,
@@ -73,7 +84,7 @@ int main() {
     }
     )";
 
-    std::string JSON_STRING2 = R"(
+    std::string JSON_STRING7 = R"(
 {
     "user": {
         "id": 12345,
@@ -91,6 +102,16 @@ int main() {
     }
 }
 )";
+
+    std::string JSON_STRING = R"(
+{
+  "key": "value",
+  "key-n": 101,
+  "key-o": {},
+  "key-l": []
+}
+
+    )";
 
 
     for (int i = 0; i < JSON_STRING.size(); i++) {
@@ -282,6 +303,11 @@ int main() {
             currentString = "";
         }
 
+        else if (ch == '\'') {
+            printf("Error: Single Quotes not allowed for key or valuee.\n");
+            return 7;
+        }
+
         else if (std::isalpha(static_cast<unsigned char>(ch))) {
             if (settings.key_and_val && !settings.prevKey) {
                 printf("Cannot have value before key\n");
@@ -319,10 +345,12 @@ int main() {
     stack[0].print();
 
     // test to see if i can access some elements.
-    printf("]\n\n\n\n");
-    val projects = (*(Object*)stack[0].data)["projects"];
-    std::vector<val> projArray = *((std::vector<val>*)projects.data);
-    (*((Object*)projArray[0].data)).print();
+    // printf("]\n\n\n\n");
+    // val projects = (*(Object*)stack[0].data)["projects"];
+    // std::vector<val> projArray = *((std::vector<val>*)projects.data);
+    // (*((Object*)projArray[0].data)).print();
+
+
     // .data["tasks"]).print();
     // Object JSON_Inner_Object, JSON_Outer_Object;
     //
