@@ -48,17 +48,23 @@ hNode* makeHuffmanTree(std::unordered_map<unsigned char, int>* counts);
 
 std::unordered_map<unsigned char, std::string>* createEncodings(hNode* huffmanTree);
 void recursiveEncode(hNode* node, std::unordered_map<unsigned char, std::string>* encodings, std::string currEncoding);
-
+void encodeFile(std::string inputFileName, std::string outputFileName);
 std::unordered_map<std::string, unsigned char>* createDecodings(std::unordered_map<unsigned char, std::string>* encodings);
 void encode(std::unordered_map<unsigned char, std::string>* encodings, std::string filePath);
 void decode(std::unordered_map<unsigned char, std::string>* decodings, std::string filePath);
 
-int main()
+int main(int argc, char* argv[])
 {
-    std::string filePath = "/home/vboxuser/CLionProjects/Compression_Tool/test.txt";
-    std::unordered_map<unsigned char, int>* counts = getCount(filePath);
-    hNode* huffmanTree = makeHuffmanTree(counts);
-    auto encodings = createEncodings(huffmanTree);
+
+    std::string filePath = ((argc > 1) ? argv[1] : "/home/vboxuser/CLionProjects/Compression_Tool/les_miserables.txt");
+    std::string outputFile = ((argc > 2) ? argv[2] : "/home/vboxuser/CLionProjects/Compression_Tool/output.txt");
+
+    // std::unordered_map<unsigned char, int>* counts = getCount(filePath);
+    // hNode* huffmanTree = makeHuffmanTree(counts);
+    // auto encodings = createEncodings(huffmanTree);
+
+    encodeFile(filePath, outputFile);
+
 
     return 0;
 }
@@ -155,3 +161,86 @@ std::unordered_map<unsigned char, std::string>* createEncodings(hNode* huffmanTr
     return encodings;
 }
 
+void encodeFile(std::string inputFileName, std::string outputFileName) {
+    // create a byte variable (char unsigned char, uint_8t)
+    // that will hold our encodings. When it gets to 8 bits
+    // we write the char (8 bits). This goes on until we have
+    // written the whole file. If the last bits don't fit in
+    // and you need to add padding, you can specify how much padding
+    // is needed. We can also put this in the top within the freq
+    // list. [ 'a' 1 'b' 2 'c' 3 6], there ar 3 key val pairs, then
+    // there is a 6 there which means 6 padding bits at the end.
+    // So we know the first byte is always the bracket, then we skip
+    // spaces and read 2 words at a time, so we read key and val.
+    // the last key val pair is incorrect and it is the padding bits
+    // and closing bracket. Everything after that is data.
+    std::unordered_map<unsigned char, int>* counts = getCount(inputFileName);
+    hNode* huffmanTree = makeHuffmanTree(counts);
+    auto encodings = createEncodings(huffmanTree);
+
+    // use the encodings to map unsigned char to variable length encoding string.
+    // turn that string into bits. Buffer (variable that is 8 bits) gets full, push
+    // to file.
+
+    FILE* inputFile = fopen(inputFileName.c_str(), "rb");
+    FILE* outputFile = fopen(outputFileName.c_str(), "wb");
+
+
+    // main loop, read bytes from input file -> use it to get corresponding
+    // mapping from the map. -> convert that mapping to bits -> write bits
+    // to file when they get to 8 -> continue till end. Might have to add the
+    // padding byte in the end because its strange to go back to top and edit
+    // (or can have random val there then edit it later)
+
+
+    // write the amount of pairs incoming
+    // reader now only needs to loop to
+    // get all the key value pairs. Can
+    // use some formatted string to get match.
+    fprintf(outputFile, "%d", counts->size());
+    for (auto  [ key, value ] : (*counts)) {
+        // write counts to the output file
+        fputc(key, outputFile);
+        fputc(' ', outputFile);
+        fprintf(outputFile, "%d", value);
+        fputc(' ', outputFile);
+    }
+
+
+    unsigned char buffer[BUFFSIZE] = {0};
+    int bytesRead = 0;
+    uint8_t bitBuffer = 0;
+    int increment = 0;
+
+    while ((bytesRead = fread(buffer, sizeof(buffer[0]), BUFFSIZE, inputFile)) > 0) {
+
+        for (int i = 0; i < bytesRead; i++) {
+            // get mapping
+            std::string mapping = (*encodings)[buffer[i]];
+            for (int j = 0; j < mapping.size(); j++) {
+                if (mapping[j] == '1') {
+                    bitBuffer |= (1 << (7 - increment));
+                }
+                increment++;
+                if (increment == 8) {
+                    // write bitBuffer to file
+                    // reset increment to 0
+                    fputc(bitBuffer, outputFile);
+                    increment = 0;
+                    bitBuffer = 0;
+                }
+            }
+
+        }
+    }
+    if (increment != 0) {
+        // we have excess bits that do not fit into 8.
+        // add them to the file, then add the next one
+        // equal to the increment, which is the number of
+        // valid bits in that last one.
+        fputc(bitBuffer, outputFile);
+        fprintf(outputFile, "%d", increment);
+    }
+    printf("Got this face\n");
+    fclose(outputFile);
+}
