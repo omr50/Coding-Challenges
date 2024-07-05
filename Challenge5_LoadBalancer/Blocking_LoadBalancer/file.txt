@@ -1,0 +1,28 @@
+Processing task #1
+GET / HTTP/1.1
+Host: localhost:8001
+User-Agent: curl/7.81.0
+Accept: */*
+
+HEADERS: GET / HTTP/1.1
+Host: localhost:8001
+User-Agent: curl/7.81.0
+Accept: */*Processing task #2
+GET / HTTP/1.1
+Host: localhost:8001
+User-Agent: curl/7.81.0
+Accept: */*
+
+HEADERS: GET / HTTP/1.1
+Host: localhost:8001
+User-Agent: curl/7.81.0
+Accept: */*Processing task #3
+GET / HTTP/1.1
+Host: localhost:8001
+User-Agent: curl/7.81.0
+Accept: */*
+
+HEADERS: GET / HTTP/1.1
+Host: localhost:8001
+User-Agent: curl/7.81.0
+Accept: */*

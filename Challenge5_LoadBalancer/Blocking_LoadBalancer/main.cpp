@@ -21,7 +21,7 @@ void handle_response();
 
 int main() {
     // reset log file for now
-    FILE* fptr = fopen("/home/vboxuser/CLionProjects/LoadBalancer/file.txt", "wb");
+    FILE* fptr = fopen("file.txt", "wb");
     fclose(fptr);
 
     start_socket_server(8001);
@@ -56,7 +56,18 @@ void start_socket_server(int PORT) {
         thread = std::thread(handle_response);
     }
     while (true) {
-        int client_socket = accept(server_fd, (sockaddr*)&address, (socklen_t*)&address);
+        socklen_t addrlen = sizeof(address);
+        int client_socket = accept(server_fd, (sockaddr*)&address, &addrlen);
+        // get the address of the socket inside of the address object.
+        std::string ip = "";
+        std::string port = std::to_string(ntohs(address.sin_port)); // uint_16 so short
+        for (int i = 0; i < 4; i++) {
+            int shamt = (24 - (i * 8));
+            ip += std::to_string((((0xff << shamt)) & ntohl(address.sin_addr.s_addr)) >> shamt) + ((i == 3) ? "" : ".");
+        }
+    
+        // test
+        printf("Clients address: %s and port: %s\n", ip.c_str(), port.c_str()); // in_addr_t is uint32
         if (client_socket < 0) {
             perror("accept failed!\n");
             continue;
@@ -94,7 +105,7 @@ void handle_response() {
 
 
 
-        FILE* fptr = fopen("/home/vboxuser/CLionProjects/LoadBalancer/file.txt", "ab");
+        FILE* fptr = fopen("file.txt", "ab");
         fprintf(fptr, "Processing task #%d\n", counter);
 
         static int counter = 0;
@@ -149,7 +160,7 @@ void handle_response() {
             auto partial_data = std::string(buffer, bytes_received);
             http_string += partial_data;
         }
-
+        
         // printf("Total bytes received after headers %d should equal to %d\n", total_bytes_received, content_length);
         fputs(http_string.c_str(), fptr);
         fclose(fptr);

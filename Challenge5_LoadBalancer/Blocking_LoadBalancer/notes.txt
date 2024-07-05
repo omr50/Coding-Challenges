@@ -1,0 +1,47 @@
+How to make sure that the load balancer correctly maps the client socket to the correct response.
+
+So the flow of sending the data (we are using blocking sockets for ease of use for now, maybe update later)
+goes like this. 
+
+1. Load balancer will have a server set up and that server will receive client connections.
+
+2. we read the http request from client connections.
+
+3. Once we have the http request string, we have to forward it to one of the servers using some kind of strategry
+like round robin.
+
+4. After forwarding to the server, the server will respond to the http request.
+
+5. The load balancer gets back the server response.
+
+6. The tricky part here is that we want to figure out how to take in this response and then
+send it to the client through the correct client socket.
+
+So the server can handle multiple client requests, so the issue is that we have to make sure that the load balancer knows
+which response from the server corresponds to which client. So here are some strategies on how to do this.
+
+1. some kind of id we can send along with the request.
+
+2. Add some sort of header, cookie, url re-writing (similar to id above but I guess maybe more specific)
+
+3. We can use the source and destination port ip combo since we are using http 1.1. Since we are using http 1.1
+there will not be multiple streams and concurrent http requests within the same socket. So each http request will
+have its own socket. Unless the keep alive header is used in which case multiple http requests may be sent. But that
+will only allow them to be sent sequentially and not in parallel where this is a mess of data to deal with. But in either 
+case we are not using the keep alive.
+
+I think I will stick with option 3 since it requires the least work. The IP + src port info is already accessible to us 
+and so we can easily just use that to route to the same server. 
+
+
+
+How to make the mapping to uniquely identify each request to server mapping?
+
+1. So lets say we have 8 servers.
+2. We use round robin to give each request to a server.
+3. So now when we give a request to the server, we have to be able to map the
+client socket that sent the request to the correct server.
+4. We use the port + ip combo and that uniquely identifies the socket. 
+5. The socket server on the load balancer forwards this request to one of the servers.
+6. The server responds to the load balancer socket server. Now the issue is I don't know how
+after this the load balancer will map this response with the correct client. 

@@ -26,8 +26,8 @@ void HTTPObject::parse() {
         std::string http_headers = this->http_string.substr(0, end);
         std::string http_body = this->http_string.substr(end + 4, std::string::npos);
         printf("HTTP BODY FROM THE CLASS: %s\n", http_body.c_str());
-        FILE* fptr = fopen("/home/vboxuser/CLionProjects/LoadBalancer/file.txt", "ab");
-        FILE* f2ptr = fopen("/home/vboxuser/CLionProjects/LoadBalancer/file2.txt", "wb");
+        FILE* fptr = fopen("file.txt", "ab");
+        FILE* f2ptr = fopen("file2.txt", "wb");
         fprintf(fptr, "HEADERS: %s", http_headers.c_str());
         fputs(http_body.c_str(), fptr);
         std::vector<std::string> headers;
