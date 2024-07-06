@@ -17,6 +17,7 @@
 
 #include <string>
 #include "../include/HTTPObject.h"
+#include "../include/Server.h"
 
 class Connection {
     public:
@@ -27,13 +28,14 @@ class Connection {
         // well.
         int forwarding_socket;
         int timer;
-        int data_buffer[2048];
+        char data_buffer[2048];
         bool read_request = false;
         // helps parse request http
         // and stores it, and also
         // stores http response when sending
         // it back to original client.
-        HTTPObject http_obj;
+        HTTPObject http_obj = HTTPObject();
+        Server* server;
         // HTTPParser parser;
         // HTTPObj    http_obj;
 
@@ -47,6 +49,7 @@ class Connection {
         // hold the data and append it to some sort of permanent
         // string. Keep reading until eof or some sort of timeout
         // or more logic when we find out more about handling http.
+        Connection();
         void read_callback(int fd);
         void read_client();
         void read_forwarding();
