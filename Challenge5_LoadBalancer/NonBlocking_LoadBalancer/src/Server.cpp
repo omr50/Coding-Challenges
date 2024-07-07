@@ -51,14 +51,28 @@
                 exit(EXIT_FAILURE);
             }
 
-            // register the server socket in read fd_set
-            this->register_socket_in_select();
-            // server is successfully listening now.
+            this->register_socket_in_select(this->fd, 0);
         }
 
-        void Server::register_socket_in_select() {
-            FD_SET(this->fd, &this->read_set);
+        void Server::register_socket_in_select(int fd, bool write, Connection* conn) {
+            // set in select fd_set, in callback, and update max read/write sock
+            if (write) {
+                FD_SET(fd, &this->write_set);
+                if (fd != this->fd)
+                    this->write_connections[fd] = conn; 
+                this->max_write_sock = std::max(this->max_write_sock, fd);
+            } else {
+                FD_SET(fd, &this->read_set);
+                if (fd != this->fd)
+                    this->read_connections[fd] = conn; 
+                this->max_read_sock = std::max(this->max_read_sock, fd);
+            }
+
         }
+        // WE WILL NEED A REGISTER FOR READ AND WRITE LATER
+        // SO WEHN READ FINISHES IT REGISTERS WRITE ON THE 
+        // SERVER CONNECTION SOCK FOR THE OTHER CALLBACK
+        // BEFORE DE-REGISTERING ITSELF.
 
         void Server::accept_callback() {
            // once select tells us there is a connection
@@ -72,57 +86,58 @@
                 // don't end server, continue
                 return;
             }
-            // if accept happens to be blocking, the return
-            // above is valid, it will be handled later when
-            // there is a connection. If there is a connection
-            // don't remove the accept from fd_set for read
-            // because we still can accept other connections.
-
-            // if we get a socket back we will construct a long lived
-            // connection object on the heap and then use that to further
-            // finish the connection. That connection will first be read 
-            // asynchronously using a callback. Then we create a new non_blocking
-            // socket to connect to the server and that will write in a non_blocking
-            // way, then we will read from that socket asynchronously, then we will
-            // take that response and then write it to the original socket in a non
-            // blocking fashion. 
-
-            // connection conn = new connection(.....);
-            // then register read callback and other stuff
-            // maybe we don't even need to save the conneciton as a variable
-            // and in an array. Since we do register callbacks. So those callbacks
-            // can delete the object from within the function if there is an error
-            // or if we successefully handled all the data.
+            set_non_blocking(client_sock);
+            Connection* conn = new Connection(client_sock, this);
+            // sometimes no data coming through socket so timer to get rid
+            // of the unused heap allocated connections so as not to overconsume memory.
+            this->register_socket_in_select(client_sock, 0, conn);
         }
 
-        void Server::start_server(int fd) {
+        void Server::start_server() {
             // register the socket in select for read 
-            fd_set tmp_read_set = read_set;
-            fd_set tmp_write_set = write_set;
+            fd_set tmp_read_set;
+            fd_set tmp_write_set;
 
             while (true) {
                 int num_fd_ready;
-                int max_sockets = std::max(max_read_sock, max_write_sock);
-                if ((num_fd_ready = select(max_sockets, &tmp_read_set, &tmp_write_set, NULL, NULL)) == -1) {
+                int max_sockets = std::max(this->max_read_sock, this->max_write_sock);
+                // printf("Started wiht %d max sockets\n", max_sockets);
+                tmp_read_set = read_set;
+                tmp_write_set = write_set;
+                if ((num_fd_ready = select(max_sockets + 1, &tmp_read_set, &tmp_write_set, NULL, NULL)) == -1) {
                     perror("Error  in select!");
                     exit(EXIT_FAILURE);
                 }
+                // printf("Got past select!\n");
+
+                // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                // REMBER TO USE the number returned from select num_fd_ready for extiting the loop early
 
                 // For each read set, for each write set, call its corresponding function from the callback array
-                for (int i = 0; i < max_sockets; i++) {
+                for (int i = 0; i < max_sockets + 1; i++) {
                     
-                    // check if the socket is of interest in the returned set
-                    // IMPORTANT: Also check if still selected in the regular read_fd, write_fd
-
+                    // for both client and forwarding socket, this should work.
                     if (FD_ISSET(i, &tmp_read_set)) {
+                        // printf("Socket %d set\n", i);
                         if (FD_ISSET(i, &read_set)) {
-                            // a new connection, callback will call accept syscall
-                            // then 
-                            this->accept_callback();
+                            if (i == this->fd) {
+                                // server socket 
+                                this->accept_callback();
+                                printf("Got somehting!!!!\n");
+                            } else {
+                                // connection
+                                Connection::read_callback(this->read_connections[i], i);
+                            }
+                        }
+                    }
+
+                    else if (FD_ISSET(i, &tmp_write_set)) {
+                        if (FD_ISSET(i, &write_set)) {
+                            // connection
+                            Connection::read_callback(this->read_connections[i], i);
                         }
                     }
                 }
-
-
+                // printf("One cycle!\n");
             }
         }

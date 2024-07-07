@@ -11,7 +11,9 @@ Non blocking server.
 #include <unistd.h>
 #include <sys/types.h>
 #include <unordered_map>
-#include "../include/Connection.h"
+#include "./Connection.h"
+
+class Connection;
 
 #define MAX_CONN 1000
 class Server {
@@ -24,16 +26,15 @@ class Server {
         int fd;
 
         // read callback array
-        void (Connection::*read_callbacks[MAX_CONN])(int);
+        Connection* read_connections[MAX_CONN];
         // write callback array
-        void (Connection::*write_callbacks[MAX_CONN])(int);
+        Connection* write_connections[MAX_CONN];
         // maintains a map of the original client sender socket and the socket that receives from the server.
         std::unordered_map<int, int> socket_mapping;
 
 
         Server(int PORT);
-        int initialize_server(int PORT);
-        void register_socket_in_select();
-        void start_server(int fd);
+        void register_socket_in_select(int fd, bool write, Connection* conn = nullptr);
+        void start_server();
         void accept_callback();
 };

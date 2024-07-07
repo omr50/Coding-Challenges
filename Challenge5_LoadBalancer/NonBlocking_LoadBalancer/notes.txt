@@ -1,0 +1,24 @@
+- finished the request phase for parsing the http
+    can be re-used for parsing response, somewhat similar
+
+- Before moving on, test it on bigger http body to see if it can handle across multiple requests
+
+- open a new socket for server side, round robin (pick the server)
+
+- send the http string through that socket (nonblocking). 
+    this part not that bad since we know the size beforehand
+    We can use that to know when we are done.
+
+- Then receive from that socket.
+    Parse that response
+
+- Response will be sent through the client socket again.
+    How do we know to do that. So for each index in the callback array
+    where the index stands for a fd, we have the connection object stored
+    there. When we receive the response it would be through a callback and
+    that callback would have access to the member variables which include the
+    other socket as well (client socket). So we can easily map between sockets
+    without some sort of structure.
+
+- Also reading from the forwarding socket (reading server response) would be just
+  the same process as reading the request from the client sock.

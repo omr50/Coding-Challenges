@@ -1,23 +1,26 @@
+#pragma once 
+
 #include <string> 
 #include <unordered_map>
 
 class HTTPObject {
     public: 
         std::string http_string = "";
-        std::string headers = "";
         bool found_content_length = false;
         int rows_read = 0;
         int header_length;
         int current_content_length;
         bool end_of_headers = false;
-        std::unordered_map<std::string, std::string> headers;
+        std::unordered_map<std::string, std::string> headers_map;
 
         // stages: get data -> get /r/n/r/n -> get each header as input in map
         // -> read content length -> read rest of data -> possibly add timeout
 
         // add to string
-        void parse(char buffer[], int length);
+        void parse(bool req_finished, char buffer[], int length);
         void parse_headers(std::string headers);
+        bool end_of_body();
+
 
 
         // using the http string, start from the previous endpoint if
