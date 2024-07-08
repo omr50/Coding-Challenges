@@ -12,8 +12,17 @@ Non blocking server.
 #include <sys/types.h>
 #include <unordered_map>
 #include "./Connection.h"
+#include <vector>
+#include <netinet/in.h>
 
 class Connection;
+
+struct server_conn {
+    // saddr 
+    in_addr_t ip;
+    int PORT;
+    bool status;
+};
 
 #define MAX_CONN 1000
 class Server {
@@ -24,6 +33,10 @@ class Server {
         int max_write_sock = 0;
         int PORT;
         int fd;
+        int up_next_server = 0;
+        std::vector<server_conn> server_connections;
+         
+        
 
         // read callback array
         Connection* read_connections[MAX_CONN];
@@ -37,4 +50,7 @@ class Server {
         void register_socket_in_select(int fd, bool write, Connection* conn = nullptr);
         void start_server();
         void accept_callback();
+        int server_connection();
+        void load_servers();
+        void health_check();
 };

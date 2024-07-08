@@ -31,7 +31,6 @@ class Connection {
         int forwarding_socket;
         int timer;
         char data_buffer[64];
-        bool read_request = false;
         // helps parse request http
         // and stores it, and also
         // stores http response when sending
@@ -53,13 +52,9 @@ class Connection {
         // string. Keep reading until eof or some sort of timeout
         // or more logic when we find out more about handling http.
         Connection(int client_sock, Server* server);
+        
         static void read_callback(Connection* conn, int fd);
-        void read_client();
-        void read_forwarding();
-
         static void write_callback(Connection* conn, int fd);
-        void write_client();
-        void write_forwarding();
 
         
         ~Connection();

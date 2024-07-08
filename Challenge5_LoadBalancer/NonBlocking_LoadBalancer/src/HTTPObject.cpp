@@ -1,6 +1,6 @@
 #include "../include/HTTPObject.h"
 
-void HTTPObject::parse(bool req_finished, char buffer[], int length) {
+void HTTPObject::parse(char buffer[], int length) {
     // std::string temp(buffer, buffer + length);
     for (int i = 0; i < length; i++)
         this->http_string += buffer[i];
@@ -52,14 +52,11 @@ void HTTPObject::parse_headers(std::string header_string) {
 bool HTTPObject::end_of_body() {
     if (!this->end_of_headers)
         return false;
-    printf("end of body call \n");
-    printf("http string %s\n", this->http_string.c_str());
     if (this->end_of_headers && this->headers_map.find("Content-Length") == this->headers_map.end())
         return true;
     printf("content length %d\n", std::stoi(this->headers_map["Content-Length"]));
     printf("Current content length: %d\n", this->current_content_length);
     if (this->current_content_length == std::stoi(this->headers_map["Content-Length"])) {
-        printf("Content: %s\n", this->http_string.substr(this->http_string.find("\r\n\r\n") + 4, this->http_string.size()).c_str());
         return true;
     }
 }

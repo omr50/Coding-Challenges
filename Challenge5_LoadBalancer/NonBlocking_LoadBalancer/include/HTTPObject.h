@@ -10,14 +10,16 @@ class HTTPObject {
         int rows_read = 0;
         int header_length;
         int current_content_length;
+        int sent_bytes = 0;
         bool end_of_headers = false;
+        bool finished_reading = false;
         std::unordered_map<std::string, std::string> headers_map;
 
         // stages: get data -> get /r/n/r/n -> get each header as input in map
         // -> read content length -> read rest of data -> possibly add timeout
 
         // add to string
-        void parse(bool req_finished, char buffer[], int length);
+        void parse(char buffer[], int length);
         void parse_headers(std::string headers);
         bool end_of_body();
 
