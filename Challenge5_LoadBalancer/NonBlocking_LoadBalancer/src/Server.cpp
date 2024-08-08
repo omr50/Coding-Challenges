@@ -6,6 +6,7 @@
 #include <netinet/in.h>
 #include <string.h>
 #include "../include/utils.h"
+#include <queue>
 
 // fd_set read_set;
 // fd_set write_set;
@@ -19,10 +20,14 @@
 
 
 Server::Server(int PORT) : PORT(PORT) {
+    for (int i = 0; i < 8; i++) {
+        this->server_connections.push_back({8001 + i, true});
+    }
+
     FD_ZERO(&this->read_set);
 
     int fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (fd == 0) {
+    if (fd <= 0) {
         perror("Socket Creation Failed!");
         exit(EXIT_FAILURE);
     }
@@ -52,6 +57,9 @@ Server::Server(int PORT) : PORT(PORT) {
     }
 
     this->register_socket_in_select(this->fd, 0);
+    for (int i = 0; i < NUM_THREADS; i++) {
+        this->thread_pool.emplace_back(&Server::worker, &task_queue, &q_mutex);
+    }
 }
 
 void Server::register_socket_in_select(int fd, bool write, Connection* conn) {
@@ -122,11 +130,11 @@ void Server::start_server() {
                 if (FD_ISSET(i, &read_set)) {
                     if (i == this->fd) {
                         // server socket 
-                        this->accept_callback();
-                        printf("Got somehting!!!!\n");
+                        this->task_queue.push([this] () {this->accept_callback();}); 
+                        // printf("Got somehting!!!!\n");
                     } else {
                         // connection
-                        Connection::read_callback(this->read_connections[i], i);
+                        this->task_queue.push([this, i] () {Connection::read_callback(this->read_connections[i], i);});
                     }
                 }
             }
@@ -134,7 +142,7 @@ void Server::start_server() {
             else if (FD_ISSET(i, &tmp_write_set)) {
                 if (FD_ISSET(i, &write_set)) {
                     // connection
-                    Connection::read_callback(this->read_connections[i], i);
+                    this->task_queue.push([this, i] () {Connection::write_callback(this->write_connections[i], i);});
                 }
             }
         }
@@ -142,10 +150,69 @@ void Server::start_server() {
     }
 }
 
-// create a new non blocking socket connection to 
-// one of the servers using round robin.
-int Server::server_connection() {
-    // when a server is down, what is the rule?
-    // move the responsibility to the next available server?
-    // 
+
+void Server::health_check() {
+    // make a call to each server and see if it responds
+    // Should it be regular tcp connection? and should it be
+    // blocking or non-blocking? or some kind of ping?
+
+
+    // how is health check done?
+    // Do we create a connection specifically for health check?
+    // it can't be persistent can it?
+    // http connection?
+    // or some sort of ping connection?
+
+    // active health checks:
+    // - lb actively sends health checks to the servers.
+
+    // passive health checks:
+    // - the lb observes how the servers respond.
+    // - Assuming if conn refused or lots of errors
+    // - we can determine the server isn't doing good.
+
+    // so the passive checks can see things like errors in the 500s
+    // to show that the server is not functioning properly.
+
+    // we can then retry the connection on the next server in the load balancer
+    // but we have to add a limit on the retries because a client can have an unintentional
+    // or maliciously malformed connection, and so the connection will cause server errors,
+    // and then that will cause the connection to keep trying on other servers one by one
+    // and then that will cause the connection to stay alive forever.
+
+    // also if we do determine that a server keeps having errors, do we keep its status as down
+    // and then we have a timer where we come back to it? or do we do a health check on every loop
+    // when the select finishes. Since it seems like doing it on a timer doesn't really matter since
+    // it only really matters if we get incoming connections. So we can do it when we have connections.
+
+}
+int Server::round_robin() {
+    for (int i = 0; i < 8; i++) {
+
+        // if the server is up and running use it, otherwise increment up_next_server
+        if (this->server_connections[this->up_next_server].status) {
+            // printf("PORT IS %d\n", this->server_connections[this->up_next_server].PORT);
+            int return_port = this->server_connections[this->up_next_server].PORT; 
+            this->up_next_server++;
+            this->up_next_server %= 8;
+            return return_port;
+        }
+        
+    }
+    // exit if no server is up (no point of keeping the load balancer up)
+    perror("No servers are connected!!\n");
+    exit(EXIT_FAILURE);
+}
+
+void Server::worker(std::queue<std::function<void()>>* q, std::mutex *q_mutex) {
+    while (true) {
+        q_mutex->lock();
+        std::function<void()> task;
+        if (!q->empty()) {
+            task = q->front();
+            q->pop();
+        }
+        q_mutex->unlock();
+        task();
+    }
 }

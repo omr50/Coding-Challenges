@@ -8,23 +8,29 @@ Non blocking server.
 - as well as callback arrays
 
 */
+
 #include <unistd.h>
 #include <sys/types.h>
 #include <unordered_map>
 #include "./Connection.h"
 #include <vector>
 #include <netinet/in.h>
+#include <thread>
+#include <queue>
+#include <mutex> 
+#include <functional>
 
 class Connection;
 
 struct server_conn {
     // saddr 
-    in_addr_t ip;
     int PORT;
     bool status;
 };
 
 #define MAX_CONN 1000
+#define NUM_THREADS 8 
+
 class Server {
     public: 
         fd_set read_set;
@@ -35,6 +41,10 @@ class Server {
         int fd;
         int up_next_server = 0;
         std::vector<server_conn> server_connections;
+        int total_connections_succeeded = 0;
+        std::vector<std::thread> thread_pool;
+        std::queue<std::function<void()>> task_queue;
+        std::mutex q_mutex;
          
         
 
@@ -50,7 +60,8 @@ class Server {
         void register_socket_in_select(int fd, bool write, Connection* conn = nullptr);
         void start_server();
         void accept_callback();
-        int server_connection();
+        int round_robin();
         void load_servers();
         void health_check();
+        static void worker(std::queue<std::function<void()>>* q, std::mutex* q_mutex);
 };

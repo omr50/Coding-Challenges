@@ -5,7 +5,7 @@ void HTTPObject::parse(char buffer[], int length) {
     for (int i = 0; i < length; i++)
         this->http_string += buffer[i];
 
-    printf("HTTP STRING IN FUNC\n%s\n", this->http_string.c_str());
+    // printf("HTTP STRING IN FUNC\n%s\n", this->http_string.c_str());
     int end_of_headers_delimiter = this->http_string.find("\r\n\r\n");
     // this only runs once, the first time the end of headers is false
     // once we find headers end we run this and it runs no more. Therefore
@@ -32,7 +32,7 @@ void HTTPObject::parse_headers(std::string header_string) {
         throw "Error: Could not find request line!";
         
     std::string header = header_string.substr(0, delimiter_index);
-    printf("request line: %s\n", header.c_str());
+    // printf("request line: %s\n", header.c_str());
     header_string = header_string.substr(delimiter_index + 2, header_string.size());
     while ((delimiter_index = header_string.find("\r\n")) != std::string::npos) {
         header = header_string.substr(0, delimiter_index);
@@ -44,7 +44,7 @@ void HTTPObject::parse_headers(std::string header_string) {
         std::string header_name = header.substr(0, header_delimiter_index); 
         std::string header_val = header.substr(header_delimiter_index+2, header.size());
         this->headers_map[header_name] = header_val;
-        printf("header name: %s, header value: %s\n", header_name.c_str(), header_val.c_str());
+        // printf("header name: %s, header value: %s\n", header_name.c_str(), header_val.c_str());
     }
 }
 
@@ -54,9 +54,12 @@ bool HTTPObject::end_of_body() {
         return false;
     if (this->end_of_headers && this->headers_map.find("Content-Length") == this->headers_map.end())
         return true;
-    printf("content length %d\n", std::stoi(this->headers_map["Content-Length"]));
-    printf("Current content length: %d\n", this->current_content_length);
+    // printf("content length %d\n", std::stoi(this->headers_map["Content-Length"]));
+    // printf("Current content length: %d\n", this->current_content_length);
     if (this->current_content_length == std::stoi(this->headers_map["Content-Length"])) {
+        // printf("How???\n");
         return true;
     }
+
+    return false;
 }
