@@ -19,17 +19,14 @@ Non blocking server.
 #include <queue>
 #include <mutex> 
 #include <functional>
+#include <condition_variable>
+#include <atomic>
+#include "./server_conn.h"
+
 
 class Connection;
+class EventLoop;
 
-struct server_conn {
-    // saddr 
-    int PORT;
-    bool status;
-};
-
-#define MAX_CONN 1000
-#define NUM_THREADS 8 
 
 class Server {
     public: 
@@ -45,23 +42,30 @@ class Server {
         std::vector<std::thread> thread_pool;
         std::queue<std::function<void()>> task_queue;
         std::mutex q_mutex;
-         
-        
+        bool threads_enabled;
+        std::condition_variable cv;
+        bool running_task[FD_SETSIZE] = {false};
+        std::mutex running_tasks_mutex;
+        std::vector<std::function<void()>> operations;
+        std::mutex operations_mutex;
+        std::atomic<int> task_counter;
+        std::condition_variable atomic_cv;
+        std::mutex atomic_cv_mutex;
+        std::vector<EventLoop*> event_loops;
+        EventLoop* main_event_loop = nullptr;
+        int event_round_robin = 0;
 
-        // read callback array
-        Connection* read_connections[MAX_CONN];
-        // write callback array
-        Connection* write_connections[MAX_CONN];
-        // maintains a map of the original client sender socket and the socket that receives from the server.
-        std::unordered_map<int, int> socket_mapping;
 
 
-        Server(int PORT);
+        Server(int PORT, bool threads_enabled);
         void register_socket_in_select(int fd, bool write, Connection* conn = nullptr);
         void start_server();
-        void accept_callback();
+        static void start_event_loop(EventLoop* eventloop);
         int round_robin();
         void load_servers();
         void health_check();
-        static void worker(std::queue<std::function<void()>>* q, std::mutex* q_mutex);
+        // static void worker(std::queue<std::function<void()>>* q, std::mutex* q_mutex, std::condition_variable* cv);
+        static void worker(std::queue<std::function<void()>>* q, std::mutex* q_mutex, std::condition_variable* taskq_cv, std::condition_variable* atomic_cv, std::atomic<int>* task_counter);
+        void queue_operation(std::function<void()> op); 
+        void perform_operations();
 };

@@ -4,9 +4,7 @@
 
 int main() {
 
-
-    Server server(8080);
-
+    Server server(8080, true);
     server.start_server();
     return 0;
 }

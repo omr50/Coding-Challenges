@@ -18,8 +18,10 @@
 #include <string>
 #include "./HTTPObject.h"
 #include "./Server.h"
+#include <time.h>
 
 class Server;
+class EventLoop;
 
 class Connection {
     public:
@@ -31,13 +33,16 @@ class Connection {
         int forwarding_socket;
         int timer;
         char data_buffer[64];
+        int conn_id = rand() % 100000;
         // helps parse request http
         // and stores it, and also
         // stores http response when sending
         // it back to original client.
         HTTPObject req_http_obj = HTTPObject();
         HTTPObject res_http_obj = HTTPObject();
-        Server* server = nullptr;
+        Server* server;
+        EventLoop* eventloop = nullptr;
+
         // HTTPParser parser;
         // HTTPObj    http_obj;
 
@@ -51,8 +56,9 @@ class Connection {
         // hold the data and append it to some sort of permanent
         // string. Keep reading until eof or some sort of timeout
         // or more logic when we find out more about handling http.
-        Connection(int client_sock, Server* server);
-        
+        Connection(int client_sock, Server* server, EventLoop* eventloop);
+        Connection(int client_sock, EventLoop* eventloop);
+        void thread_safe_delete(); 
         static void read_callback(Connection* conn, int fd);
         static void write_callback(Connection* conn, int fd);
 

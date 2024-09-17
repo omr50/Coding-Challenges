@@ -9,7 +9,7 @@ INCLUDE_DIR = include
 SRC_DIR = src
 
 # Source files
-SRCS = $(SRC_DIR)/HTTPObject.cpp $(SRC_DIR)/Server.cpp $(SRC_DIR)/Connection.cpp $(SRC_DIR)/utils.cpp main.cpp 
+SRCS = $(SRC_DIR)/HTTPObject.cpp $(SRC_DIR)/Server.cpp $(SRC_DIR)/Connection.cpp $(SRC_DIR)/utils.cpp main.cpp $(SRC_DIR)/EventLoop.cpp
 
 # Object files
 OBJS = $(SRCS:.cpp=.o)

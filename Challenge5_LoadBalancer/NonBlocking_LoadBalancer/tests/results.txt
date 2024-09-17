@@ -1,0 +1,11 @@
+Attempt 0: Time taken for 1000 concurrent requests: 3.6644091606140137 seconds
+Attempt 1: Time taken for 1000 concurrent requests: 3.6954116821289062 seconds
+Attempt 2: Time taken for 1000 concurrent requests: 3.6173346042633057 seconds
+Attempt 3: Time taken for 1000 concurrent requests: 1.8556702136993408 seconds
+Attempt 4: Time taken for 1000 concurrent requests: 2.1427063941955566 seconds
+Attempt 5: Time taken for 1000 concurrent requests: 2.199582099914551 seconds
+Attempt 6: Time taken for 1000 concurrent requests: 2.14408540725708 seconds
+Attempt 7: Time taken for 1000 concurrent requests: 2.1329028606414795 seconds
+Attempt 8: Time taken for 1000 concurrent requests: 2.3731868267059326 seconds
+Attempt 9: Time taken for 1000 concurrent requests: 2.3110997676849365 seconds
+Total time taken: 26.468547582626343

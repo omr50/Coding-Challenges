@@ -3,10 +3,15 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include "../include/EventLoop.h"
 
-Connection::Connection(int client_sock, Server* server): client_socket(client_sock), server(server) { }
+Connection::Connection(int client_sock, Server* server, EventLoop* eventloop): client_socket(client_sock), server(server), eventloop(eventloop) {}
 
 void Connection::read_callback(Connection* conn, int fd) {
+    if (conn == nullptr) {
+        return;
+    }
+
     HTTPObject* http_obj = nullptr;
 
     // printf("fd = %d and fsock = %d\n", fd, conn->forwarding_socket);
@@ -32,7 +37,7 @@ void Connection::read_callback(Connection* conn, int fd) {
         } catch (const char* message) {
             // printf("Error during parsing: %s\n", message);
             // printf("Delete 1\n");
-            delete conn;
+            conn->thread_safe_delete();
             return;
         }
         // printf("read %d bytes size %d\n", n, sizeof(conn->data_buffer));
@@ -58,17 +63,14 @@ void Connection::read_callback(Connection* conn, int fd) {
             // because we still want to write to it the final result but we don't need it for reads and can
             // close that end of it. Each socket should read once and write once, so technically you can
             // de-register that end of it from select when you finish with it.
-            conn->server->read_connections[fd] = nullptr;    
-            FD_CLR(fd, &conn->server->read_set);
-            // printf("Removed socket from read set and callback\n");
+            conn->eventloop->read_connections[fd] = nullptr;    
+            FD_CLR(fd, &conn->eventloop->read_set);
 
-            // if we are using client sock, add the forwarding socket.
-            // we first create the forwarding socket and make it non-blocking.
             if (fd == conn->client_socket) {
                 int sockfd = socket(AF_INET, SOCK_STREAM, 0);
                 if (sockfd <= 0) {
                     // printf("Delete 2\n");
-                    delete conn;
+                    conn->thread_safe_delete();
                     return;
                 }
 
@@ -76,7 +78,7 @@ void Connection::read_callback(Connection* conn, int fd) {
                     conn->forwarding_socket = sockfd;
                 } else {
                     // printf("Delete 3\n");
-                    delete conn;
+                    conn->thread_safe_delete();
                     return;
                 }
                 // before we add the socket to select, we have to connect.
@@ -88,6 +90,7 @@ void Connection::read_callback(Connection* conn, int fd) {
                 // so no need for error detection.
                 serv_addr.sin_port = htons(conn->server->round_robin());
                 if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0) {
+                    
                     perror("Invalid address / Address not supported");
                     exit(EXIT_FAILURE);
                 }
@@ -100,53 +103,65 @@ void Connection::read_callback(Connection* conn, int fd) {
                         // printf("EINPROGRESS ERROR!\n");
                     else {
                         printf("Delete 4\n");
-                        delete conn;
-                        return;
+                        conn->thread_safe_delete();
+                        return;    
                     }
                 }
                 // printf("Testing no error\n");
                 // once socket has initiated connect, we can add the callback and if it succeeds
                 // and becomes writable, select will trigger. 
-                conn->server->register_socket_in_select(conn->forwarding_socket, true, conn);
+                conn->eventloop->register_socket_in_select(conn->forwarding_socket, true, conn);
                 // printf("SG FAULT HERE?\n");
                 // FD_SET(conn->forwarding_socket, &conn->server->write_set);
             }
-            else {
-                conn->server->register_socket_in_select(conn->client_socket, true, conn);
+            else if (fd == conn->forwarding_socket) {
+                conn->eventloop->register_socket_in_select(conn->client_socket, true, conn);
                 // FD_SET(conn->client_socket, &conn->server->write_set);
             }
-
+            else {
+                printf("Wrong Socket being read!");
+            }
         }
 
     } else if (n == -1) {
         // error but if eagain then fine
         if (errno == EAGAIN) {
             // return and then handle read later
+            
             return;
         } else{
             // error in connection, end it
             // printf("GOT ERRORR DELETING NOWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW\n");
             // printf("Delete 5\n");
-            delete conn;
+            
+            conn->thread_safe_delete(); 
+            return;
         }
     } else if (n == 0) {
         // eof
         // printf("HTTP COMPLETE %s\n", http_obj->http_string.c_str());
         if (http_obj->end_of_body()) {
+            
             return;
         }
         else {
             // printf("Delete 6\n");
-            delete conn;
+            conn->thread_safe_delete(); 
             return;
         }
     }
     else {
         printf("Unexpected value %d\n", n);
+
+        
     }
+    
 }
 
 void Connection::write_callback(Connection* conn, int fd) {
+    if (conn == nullptr) {
+        return;
+    }
     // write the http string we got to the write sys call
     // keep track of the num_bytes, and if it equals to str length
     // setting the http object to the opposite one 
@@ -165,12 +180,14 @@ void Connection::write_callback(Connection* conn, int fd) {
         int error = 0;
         socklen_t len = sizeof(error);
         if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0) {
+            
             perror("Getsockopt error");
-            delete conn;
+            conn->thread_safe_delete();
             return;
         }
     } else {
-        perror("Wrong Socket being read!");
+        
+        printf("Wrong Socket being read!");
         exit(EXIT_FAILURE);
     }   
 
@@ -187,41 +204,50 @@ void Connection::write_callback(Connection* conn, int fd) {
             // if we wrote to the forwarding socket we can remove the socket from the write callback
             // and the fd set.
             if (fd == conn->forwarding_socket) {
-                conn->server->total_connections_succeeded++;
                 // printf("Finsihed writing to forwarding!\n");
                 // printf("Total of %d connections successfully served!\n", conn->server->total_connections_succeeded);
 
                 // clear the current socket
-                conn->server->write_connections[fd] = nullptr;    
-                FD_CLR(fd, &conn->server->write_set);
+                conn->eventloop->write_connections[fd] = nullptr;    
+                FD_CLR(fd, &conn->eventloop->write_set);
                 // add the read for the forwarding socket
-                conn->server->register_socket_in_select(conn->forwarding_socket, false, conn);
+                conn->eventloop->register_socket_in_select(conn->forwarding_socket, false, conn);
+                // threads enabled
             } else if (fd == conn->client_socket) {
                 // destroy connection because we are done sending.
-                delete conn;
+                conn->thread_safe_delete();
                 return;
             }
         }
     } else {
         // handle invalid writes (and server errors to start doing the passive healt checks)
+        printf("TESTING 123\n");
     }
 
+    
+}
+
+void Connection::thread_safe_delete() {
+    // printf("Delete OP CALLED!!!\n");
+        delete this;
 }
 
 
 Connection::~Connection() {
     // get rid of callbacks, close sockets, then memory will be deleted. 
-    this->server->read_connections[this->client_socket] = nullptr;    
-    this->server->read_connections[this->forwarding_socket] = nullptr;    
-    this->server->write_connections[this->client_socket] = nullptr;    
-    this->server->write_connections[this->forwarding_socket] = nullptr;    
+    // printf("DELTE OBJECT CALLED !!!!\n");
+    // threads 
+    this->eventloop->read_connections[this->client_socket] = nullptr;    
+    this->eventloop->read_connections[this->forwarding_socket] = nullptr;    
+    this->eventloop->write_connections[this->client_socket] = nullptr;    
+    this->eventloop->write_connections[this->forwarding_socket] = nullptr;
+    FD_CLR(this->client_socket, &this->eventloop->read_set);
+    FD_CLR(this->forwarding_socket, &this->eventloop->read_set);
 
-    FD_CLR(this->client_socket, &server->read_set);
-    FD_CLR(this->forwarding_socket, &server->read_set);
-
-    FD_CLR(this->client_socket, &server->write_set);
-    FD_CLR(this->forwarding_socket, &server->write_set);
+    FD_CLR(this->client_socket, &this->eventloop->write_set);
+    FD_CLR(this->forwarding_socket, &this->eventloop->write_set);
 
     close(this->client_socket);
     close(this->forwarding_socket);
+    this->eventloop->num_connections--;
 }

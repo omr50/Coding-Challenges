@@ -1,3 +1,10 @@
+/*
+This is the main server. It will listen for connections and forward them to the event loops.
+If there is only one thread then the event loop will be in the main thread as well. If there 
+are threads, then each thread will have its own even loop and the server will forward accepted
+connections to the event loops.
+*/
+
 #include "../include/Server.h"
 #include <sys/socket.h>
 #include <errno.h>
@@ -7,19 +14,10 @@
 #include <string.h>
 #include "../include/utils.h"
 #include <queue>
-
-// fd_set read_set;
-// fd_set write_set;
-// int max_read_sock = 0;
-// int max_write_sock = 0;
-// int PORT;
-
-// void (*read_callbacks[MAX_CONN])(int);
-// void (*write_callbacks[MAX_CONN])(int);
-// std::unordered_map<int, int> socket_mapping;
+#include "../include/EventLoop.h"
 
 
-Server::Server(int PORT) : PORT(PORT) {
+Server::Server(int PORT, bool threads_enabled = false) : PORT(PORT), threads_enabled(threads_enabled) {
     for (int i = 0; i < 8; i++) {
         this->server_connections.push_back({8001 + i, true});
     }
@@ -55,99 +53,44 @@ Server::Server(int PORT) : PORT(PORT) {
         perror("Listen failed!");
         exit(EXIT_FAILURE);
     }
+    // FD_SET(fd, &this->read_set);
 
-    this->register_socket_in_select(this->fd, 0);
-    for (int i = 0; i < NUM_THREADS; i++) {
-        this->thread_pool.emplace_back(&Server::worker, &task_queue, &q_mutex);
+    if (threads_enabled) {
+        printf("testing if thread works\n");
+        for (int i = 0; i < NUM_THREADS; i++) {
+            this->event_loops.push_back(new EventLoop(this));
+        } 
+        for (int i = 0; i < NUM_THREADS; i++) {
+            this->thread_pool.emplace_back(&Server::start_event_loop, this->event_loops[i]);
+        }
+        printf("testing if thread works end?\n");
     }
+    // always create main event loop anyway
+    this->main_event_loop = new EventLoop(this, fd);
+    this->main_event_loop->is_main = true;
+    this->main_event_loop->num_connections++;
+    printf("Server started on port %d\n", PORT);
+    printf("Threads are %s\n", threads_enabled ? "enabled" : "disabled");
 }
 
-void Server::register_socket_in_select(int fd, bool write, Connection* conn) {
-    // set in select fd_set, in callback, and update max read/write sock
-    if (write) {
-        FD_SET(fd, &this->write_set);
-        if (fd != this->fd)
-            this->write_connections[fd] = conn; 
-        this->max_write_sock = std::max(this->max_write_sock, fd);
-    } else {
-        FD_SET(fd, &this->read_set);
-        if (fd != this->fd)
-            this->read_connections[fd] = conn; 
-        this->max_read_sock = std::max(this->max_read_sock, fd);
-    }
 
-}
 // WE WILL NEED A REGISTER FOR READ AND WRITE LATER
 // SO WEHN READ FINISHES IT REGISTERS WRITE ON THE 
 // SERVER CONNECTION SOCK FOR THE OTHER CALLBACK
 // BEFORE DE-REGISTERING ITSELF.
 
-void Server::accept_callback() {
-    // once select tells us there is a connection
-    // we can try to accept; if no connection, error
-    // but don't end the program
-    sockaddr_in addr;
-    socklen_t len = sizeof(addr);
-    int client_sock = accept(this->fd, (sockaddr*)&addr, &len);     
-    if (client_sock == -1) {
-        perror("Error accepting connection");
-        // don't end server, continue
-        return;
-    }
-    set_non_blocking(client_sock);
-    Connection* conn = new Connection(client_sock, this);
-    // sometimes no data coming through socket so timer to get rid
-    // of the unused heap allocated connections so as not to overconsume memory.
-    this->register_socket_in_select(client_sock, 0, conn);
+
+
+// event loop per thread. start event loop will run the one particular to the given server
+void Server::start_server() {
+    printf("STARTING MAIN EVENT LOOP\n");
+    this->main_event_loop->start_loop();
 }
 
-void Server::start_server() {
-    // register the socket in select for read 
-    fd_set tmp_read_set;
-    fd_set tmp_write_set;
 
-    while (true) {
-        int num_fd_ready;
-        int max_sockets = std::max(this->max_read_sock, this->max_write_sock);
-        // printf("Started wiht %d max sockets\n", max_sockets);
-        tmp_read_set = read_set;
-        tmp_write_set = write_set;
-        if ((num_fd_ready = select(max_sockets + 1, &tmp_read_set, &tmp_write_set, NULL, NULL)) == -1) {
-            perror("Error  in select!");
-            exit(EXIT_FAILURE);
-        }
-        // printf("Got past select!\n");
-
-        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        // REMBER TO USE the number returned from select num_fd_ready for extiting the loop early
-
-        // For each read set, for each write set, call its corresponding function from the callback array
-        for (int i = 0; i < max_sockets + 1; i++) {
-            
-            // for both client and forwarding socket, this should work.
-            if (FD_ISSET(i, &tmp_read_set)) {
-                // printf("Socket %d set\n", i);
-                if (FD_ISSET(i, &read_set)) {
-                    if (i == this->fd) {
-                        // server socket 
-                        this->task_queue.push([this] () {this->accept_callback();}); 
-                        // printf("Got somehting!!!!\n");
-                    } else {
-                        // connection
-                        this->task_queue.push([this, i] () {Connection::read_callback(this->read_connections[i], i);});
-                    }
-                }
-            }
-
-            else if (FD_ISSET(i, &tmp_write_set)) {
-                if (FD_ISSET(i, &write_set)) {
-                    // connection
-                    this->task_queue.push([this, i] () {Connection::write_callback(this->write_connections[i], i);});
-                }
-            }
-        }
-        // printf("One cycle!\n");
-    }
+void Server::start_event_loop(EventLoop* eventloop) {
+    eventloop->start_loop();
+    
 }
 
 
@@ -202,17 +145,4 @@ int Server::round_robin() {
     // exit if no server is up (no point of keeping the load balancer up)
     perror("No servers are connected!!\n");
     exit(EXIT_FAILURE);
-}
-
-void Server::worker(std::queue<std::function<void()>>* q, std::mutex *q_mutex) {
-    while (true) {
-        q_mutex->lock();
-        std::function<void()> task;
-        if (!q->empty()) {
-            task = q->front();
-            q->pop();
-        }
-        q_mutex->unlock();
-        task();
-    }
 }

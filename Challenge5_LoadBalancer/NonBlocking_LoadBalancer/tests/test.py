@@ -21,10 +21,12 @@ async def main():
     tasks = []
     success_count = []
     failure_count = []
-    num_calls = 100000
+    num_calls = 1000
     avg_latency_ms = .050  # Average latency in seconds
 
     with open("results.txt", 'w') as results:
+
+        initial_start_time = time.time()
         for i in range(10):
             async with aiohttp.ClientSession() as session:
                 for _ in range(num_calls):
@@ -35,10 +37,14 @@ async def main():
                 start_time = time.time()
                 await asyncio.gather(*tasks)
                 end_time = time.time()
+                print(f"Attempt {i}: Time taken for {num_calls} concurrent requests: {end_time - start_time} seconds\n")
 
                 results.write(f"Attempt {i}: Time taken for {num_calls} concurrent requests: {end_time - start_time} seconds\n")
 
-    print(f"Time taken for {num_calls * 10} concurrent requests: {end_time - start_time} seconds")
+
+        last_end_time = time.time()
+        results.write("Total time taken: " + str(last_end_time - initial_start_time))
+    print(f"Time taken for {num_calls * 10} concurrent requests: {last_end_time - initial_start_time} seconds")
     print(f"Number of successful requests: {len(success_count)}")
     print(f"Number of failed requests: {len(failure_count)}")
 
