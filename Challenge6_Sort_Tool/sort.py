@@ -91,13 +91,41 @@ def heapsort(array):
 # if we have both then 0 - 51
 # if ascii, then 0 - 127 i think. if its a file (best to play it safe and do ascii)
 def radixsort(array):
+    # assume ascii since that is easier to implement. We will sort files, and therefore represent
+    # everything as text.
+    max_code_point = max(ord(char) for word in array for char in word) + 1
+    max_len = max(len(word) for word in array)
+    for i in range(max_len - 1, -1, -1):
+        # print(len(array))
+        buckets = [[] for _ in range(max_code_point)]
+        too_small = []
+        for word in array:
+            if i < len(word):
+                char_code = ord(word[i])
+                buckets[char_code].append(word)
+            else:
+                too_small.append(word)
+        array = [word for bucket in buckets for word in bucket]
+        array = too_small + array
+    return array
 
-    return 0   
+
+
 # output = (merge_sort(words_array, 0, len(words_array)-1))
-output = heapsort(words_array)
-output_str = "\n".join(output)
+# output = heapsort(words_array)
+arr1 = words_array.copy()
+arr2 = words_array.copy()
+arr3 = words_array.copy()
+output1 = merge_sort(arr1, 0, len(words_array) - 1)
+output2 = heapsort(arr2)
+output3 = radixsort(arr3)
+# output_str = "\n".join(output)
 
-print(output_str)
+# print(output_str)
+print(output1 == output2 == output3)
+print(output1[0:5])
+print(output2[0:5])
+print(output3[0:5])
 
 # arr = [9,7,3,1,4,6,2, 5]
 
