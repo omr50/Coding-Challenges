@@ -109,23 +109,61 @@ def radixsort(array):
         array = too_small + array
     return array
 
+def quicksort(array, low, high):
+    
+    # if out of bounds, return
+    if low >= high:
+        return
 
+    # otherwise partition the current array and
+    # then recursively do it
 
+    new_middle = partition(array, low, high)
+
+    quicksort(array, low, new_middle)
+    quicksort(array, new_middle + 1, high)
+
+def partition(array, low, high):
+    pivot_val = array[low]
+
+    i = low
+    j = high
+
+    while True:
+        while array[i] < pivot_val:
+            i += 1
+
+        while array[j] > pivot_val: 
+            j -= 1
+
+        if i >= j:
+            return j
+
+        array[i], array[j] = array[j], array[i]
+
+        i += 1
+        j -= 1
+
+    
 # output = (merge_sort(words_array, 0, len(words_array)-1))
 # output = heapsort(words_array)
 arr1 = words_array.copy()
 arr2 = words_array.copy()
 arr3 = words_array.copy()
+arr4 = words_array.copy()
 output1 = merge_sort(arr1, 0, len(words_array) - 1)
 output2 = heapsort(arr2)
 output3 = radixsort(arr3)
+quicksort(arr4, 0, len(arr4) - 1)
+output4 = arr4
 # output_str = "\n".join(output)
 
 # print(output_str)
-print(output1 == output2 == output3)
+print(output1 == output2 == output3 == output4)
 print(output1[0:5])
 print(output2[0:5])
 print(output3[0:5])
+print(output4[0:5])
 
 # arr = [9,7,3,1,4,6,2, 5]
 
