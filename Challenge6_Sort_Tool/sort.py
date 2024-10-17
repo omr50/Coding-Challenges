@@ -1,5 +1,6 @@
 import sys
 from heapq import heapify, heappush, heappop
+import random
 
 # take in an input and then sort it in terms of all words in there
 
@@ -8,15 +9,42 @@ from heapq import heapify, heappush, heappop
 
 n = len(sys.argv)
 filename = ""
+
 options = {
-    '-u': False
+    '-u': False,
+    '-sort': "MERGE"
 }
 for i in range(1, n):
     if sys.argv[i][len(sys.argv[i])-4:] == '.txt':
         filename = sys.argv[i] 
     if sys.argv[i] in options:
         options[sys.argv[i]] = True
-
+    if len(sys.argv[i]) > len("-sort=") and sys.argv[i][0: len("-sort=")] == "-sort=":
+        # get sort method
+        sort_method = sys.argv[i][len("-sort="):] 
+        if sort_method == "random":
+            options["-sort"] = "RANDOM"
+        elif sort_method == "merge":
+            options["-sort"] = "MERGE"
+        elif sort_method == "heap":
+            options["-sort"] = "HEAP"
+        elif sort_method == "radix":
+            options["-sort"] = "RADIX"
+        elif sort_method == "quick":
+            options["-sort"] = "QUICK"
+    if sys.argv[i] == "-R":
+        options["-sort"] = "RANDOM"
+    if sys.argv[i] == "-RA":
+        options["-sort"] = "RADIX"
+    elif sys.argv[i] == "-M":
+        options["-sort"] = "MERGE"
+    elif sys.argv[i] == "-H":
+        options["-sort"] = "HEAP"
+    elif sys.argv[i] == "-Q":
+        options["-sort"] = "quick"
+    elif sys.argv[i] == "-random-sort":
+        options["-sort"] = "RANDOM"
+    
 if filename == "":
     print("DID NOT ENTER FILE!")
     sys.exit()
@@ -34,12 +62,12 @@ if options['-u']:
     words_array = list(set(words_array))
 
 # print(words_array)
-def merge_sort(array, l, r):
+def mergesort(array, l, r):
     if l == r:
         return [array[l]]
     m = (l + r) // 2
-    left = merge_sort(array, l, m)
-    right = merge_sort(array, m+1, r)
+    left = mergesort(array, l, m)
+    right = mergesort(array, m+1, r)
 
     # sort the merged halves
     output = []
@@ -144,26 +172,48 @@ def partition(array, low, high):
         i += 1
         j -= 1
 
-    
+
+def randomsort(array):
+    # produce a random number from i to n, swap element
+    # i and the random element chosen. Repeat until end
+    # of array.
+
+    for i in range(len(array)):
+        j = random.randint(i, len(array) - 1)
+        array[i], array[j] = array[j], array[i]
+
+
+        
+output = None
+if options["-sort"] == "MERGE":
+    output = mergesort(words_array, 0, len(words_array)-1)
+elif options["-sort"] == "RADIX":
+    output = radixsort(words_array)
+elif options["-sort"] == "QUICK":
+    quicksort(words_array, 0, len(words_array) -1)
+    output = words_array
+elif options["-sort"] == "HEAP":
+    output = heapsort(words_array)
+elif options["-sort"] == "RANDOM":
+    randomsort(words_array)
+    output = words_array
+
+for word in output:
+    print(word)
+
+
 # output = (merge_sort(words_array, 0, len(words_array)-1))
 # output = heapsort(words_array)
-arr1 = words_array.copy()
-arr2 = words_array.copy()
-arr3 = words_array.copy()
-arr4 = words_array.copy()
-output1 = merge_sort(arr1, 0, len(words_array) - 1)
-output2 = heapsort(arr2)
-output3 = radixsort(arr3)
-quicksort(arr4, 0, len(arr4) - 1)
-output4 = arr4
+# output1 = merge_sort(arr1, 0, len(words_array) - 1)
+# output2 = heapsort(arr2)
+# output3 = radixsort(arr3)
+# quicksort(arr4, 0, len(arr4) - 1)
+# output4 = arr4
+# randomsort(arr5)
+# output5 = arr5
 # output_str = "\n".join(output)
 
 # print(output_str)
-print(output1 == output2 == output3 == output4)
-print(output1[0:5])
-print(output2[0:5])
-print(output3[0:5])
-print(output4[0:5])
 
 # arr = [9,7,3,1,4,6,2, 5]
 
