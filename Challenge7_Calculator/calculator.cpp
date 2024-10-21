@@ -51,14 +51,6 @@ float makeNum(int &i, std::string expression) {
 }
 
 int main() {
-
-	// make all of the numbers doubles. Better than
-	// dealing with int division accidentally
-	
-	// use a vector to hold the series of operation 
-	// formulate them into tokens and valid or invalid
-	// operations.
-	
 	std::vector<string> stack;
 	std::vector<string> opStack;
 
@@ -70,9 +62,6 @@ int main() {
 	std::string expression;
 	printf("Enter expression:\n);
 	scanf("%s", expression);
-
-	// also handle characters that are beyond the scope of this project
-
 
 	for (int i = 0; i < expression.size(); i++) {
 		char c = expression[i];
@@ -94,7 +83,6 @@ int main() {
 		}
 
 		if (stack.empty()) {
-			// if empty and not operation then we can continue 
 			if (isOpenParen) {
 				stack.push_back(c);
 				prev = OPEN_PAREN;
@@ -110,13 +98,10 @@ int main() {
 				return 0;
 			}
 		} 
-		// stack has something inside
 		else {
 			char upper = stack.back();		
-			// previous char is an operation
 			if (inOperations(prev)) {
 				if (inOperations(c)) {
-					// may add the exact point in the string where the error occured for clarity.
 					printf("Error! Operation was added directly after another operation!\n");
 					return 0;
 				}
@@ -135,12 +120,10 @@ int main() {
 					stack.push_back(number);
 				}
 				else if (c == ')') {
-					// i guess its technically valid but just do nothing
 					stack.pop();
 				}
 			} else if (prev == NUM) {
 				if (isDigit(c)) {
-					// cant have digit after digit
 					printf("Error! Cannot have a number after another number!\n);
 					return 0;
 				}	
