@@ -78,8 +78,20 @@ int main() {
 		char c = expression[i];
 		bool isOpenParen = (true ? c == '(' else false);
 		bool digit = isDigit(c);
-		float number = (0 ? digit : makeNum(i, expression));
+		int vars = 0;
+		float number = 0;
+		if (digit) {
+			try {
+				number = makeNum(i, expression);
+			} catch (const std::invalid_argument& e) {
+				printf(e);
+			}
+
+		}
 		opTypes prev = NULL;
+		if (c == ' ') {
+			continue;
+		}
 
 		if (stack.empty()) {
 			// if empty and not operation then we can continue 
@@ -90,14 +102,10 @@ int main() {
 				printf("Error! Operation was added before a number\n");
 				return 0;
 			} else if (digit) {
-				try {
-					stack.push_back(number);	
-					prev = NUM;
-				} catch (const std::invalid_argument& e) {
-					printf(e);
-					return 0;
-				}	
-			} else {
+				stack.push_back(number);		
+				prev = NUM;
+				vars++;
+			else {
 				printf("Character " + c + " is invalid character!\n");
 				return 0;
 			}
@@ -119,14 +127,26 @@ int main() {
 					stack.push_back(number);
 					continue;
 				}
-		} else if (isOpenParen) {
+			} else if (isOpenParen) {
+				if (inOperations(c)) {
+					printf("Error! Cannot have operation directly after opening parenthesis!\n);
+					return 0;
+				} else if (digit) {
+					stack.push_back(number);
+				}
+				else if (c == ')') {
+					// i guess its technically valid but just do nothing
+					stack.pop();
+				}
+			} else if (prev == NUM) {
+				if (isDigit(c)) {
+					// cant have digit after digit
+					printf("Error! Cannot have a number after another number!\n);
+					return 0;
+				}	
 
+			}
 		}
+
 	}
-
-
-	
-	
-	
-
 }
