@@ -105,6 +105,7 @@ int main() {
 		// stack has something inside
 		else {
 			char upper = stack.back();		
+			// previous char is an operation
 			if (inOperations(prev)) {
 				if (inOperations(c)) {
 					// may add the exact point in the string where the error occured for clarity.
@@ -118,6 +119,8 @@ int main() {
 					stack.push_back(number);
 					continue;
 				}
+		} else if (isOpenParen) {
+
 		}
 	}
 
