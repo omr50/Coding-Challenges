@@ -107,6 +107,7 @@ int main() {
 			char upper = stack.back();		
 			if (inOperations(prev)) {
 				if (inOperations(c)) {
+					// may add the exact point in the string where the error occured for clarity.
 					printf("Error! Operation was added directly after another operation!\n");
 					return 0;
 				}
