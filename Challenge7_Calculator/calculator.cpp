@@ -113,6 +113,9 @@ int main() {
 				else if (isOpenParen) {
 					stack.push_back(c);
 					continue;
+				} else if (digit) {
+					stack.push_back(number);
+					continue;
 				}
 		}
 	}
