@@ -30,7 +30,7 @@ bool isDigit(char c) {
 	return (c >= '0' && c <= '9');
 }
 
-std::string makeNum(int &i, std::string expression) {
+std::string makeNum(int &i, std::string expression, bool isNegative = false) {
 	std::string num = "";
 	bool decimalPlace = false;
 	while (i < expression.size()) {
@@ -58,7 +58,8 @@ std::string makeNum(int &i, std::string expression) {
 		}
 		i++;
 	}
-
+	if (isNegative) 
+		num = "-" + num;
 	return num;
 }
 
@@ -107,12 +108,12 @@ void eval(std::vector<std::string> &stack, std::vector<char>& opStack) {
 			break;
 		}
 
-		op = opStack.back();
-		opStack.pop_back();
-
 		if (!opStack.size()) {
 			break;
 		}
+
+		op = opStack.back();
+		opStack.pop_back();
 
 		printf("NUM1: %s, NUM2: %s\n", num1.c_str(), num2.c_str());
 		std::string total = performOp(num1, num2, op);
@@ -148,6 +149,7 @@ int main() {
 				number = makeNum(i, expression);
 			} catch (const std::invalid_argument& e) {
 				std::cout << (e.what());
+				return 0;
 			}
 
 		}
@@ -160,8 +162,24 @@ int main() {
 				stack.push_back(std::string(1, c));
 				prev = OPEN_PAREN;
 			} else if (inOperations(c))  {
-				printf("Error! Operation was added before a number\n");
-				return 0;
+				printf("C IS ? %c\n", c);
+				if (c == '-' && i + 1 < expression.size()) {
+					printf("In here?\n");
+					i++;
+					try {
+						if (isDigit(expression[i]))
+							number = makeNum(i, expression, true);
+						stack.push_back(number);
+						prev = NUM;
+					} catch (const std::invalid_argument& e) {
+						std::cout << (e.what());
+						return 0;
+					}
+				
+				} else {
+					printf("Error! Operation was added before a number\n");
+					return 0;
+				}
 			} else if (digit) {
 				stack.push_back(number);		
 				prev = NUM;
@@ -174,8 +192,25 @@ int main() {
 		else {
 			if (inOperations(prev)) {
 				if (inOperations(c)) {
-					printf("Error! Operation was added directly after another operation!\n");
-					return 0;
+
+					if (c == '-' && i + 1 < expression.size()) {
+						printf("In here?\n");
+						i++;
+						try {
+							if (isDigit(expression[i]))
+								number = makeNum(i, expression, true);
+							stack.push_back(number);
+							prev = NUM;
+						} catch (const std::invalid_argument& e) {
+							std::cout << (e.what());
+							return 0;
+					}
+				
+					} else {
+						printf("Error! Operation was added before a number\n");
+						return 0;
+					}
+
 				}
 				else if (isOpenParen) {
 					stack.push_back(std::string(1, c));
@@ -183,12 +218,12 @@ int main() {
 					prev = OPEN_PAREN;
 					continue;
 				} else if (digit) {
-					prev = NUM;
 					stack.push_back(number);
 					printf("Number %s added\n", number.c_str());
 					if (!opStack.empty()) {
 						printf("reached this point\n");
-						if (opStack.back() == MULT || opStack.back() == DIV) {
+						opTypes lastOp = charToOp(opStack.back());
+						if (lastOp == MULT || lastOp == DIV) {
 							if (stack.size() < 2) {
 								printf("Cannot do operation on less than 2 numbers!\n");
 								return 0;
@@ -202,9 +237,16 @@ int main() {
 							std::string output = performOp(num1, num2, op);
 							printf("Output in mainloop %s\n", output.c_str());
 							stack.push_back(output);
+						} else if (lastOp == MINUS) {
+							// if minus then we replace with plus and make number negative
+							opStack[opStack.size() - 1] = '+';
+							float num = stof(number) * -1;
+							stack[stack.size() - 1] = std::to_string(num);
 						}
 
 					}
+
+					prev = NUM;
 					continue;
 				}
 			} else if (prev == OPEN_PAREN) {
@@ -250,4 +292,22 @@ int main() {
 		for (int i = 0; i < stack.size(); i++) {
 			printf("[%s] ", stack[i].c_str());
 		}
+
+		// evaluate everything until op stack is empty and size of stack is one
+		while (stack.size() > 1) {
+			char op = opStack.back();
+			opStack.pop_back();
+			std::string num1 = stack.back();
+			stack.pop_back();
+			std::string num2 = stack.back();
+			stack.pop_back();
+			std::string output = performOp(num1, num2, op);
+			stack.push_back(output);
+			
+		}
+
+
+		printf("FINAL OUTPUT: %s\n", stack[0].c_str());
 }
+
+// ( 4 + ( 5  + 2 * 3 ) * 2 )  TEST CASE
