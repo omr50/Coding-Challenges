@@ -21,7 +21,7 @@ async def main():
     tasks = []
     success_count = []
     failure_count = []
-    num_calls = 1000
+    num_calls = 10000 
     avg_latency_ms = .050  # Average latency in seconds
 
     with open("results.txt", 'w') as results:
